@@ -2,8 +2,21 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>미로찾기 게임</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>미로찾기 - 30초 탈출</title>
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="🧩 미로찾기 - 30초 탈출">
+<meta property="og:description" content="방향키로 미로를 탐험해 30초 안에 탈출하는 게임! 난이도 하/중/상 선택 가능.">
+<meta property="og:image" content="https://biblekim90.github.io/maze-escape-game/og-image.png">
+<meta property="og:url" content="https://biblekim90.github.io/maze-escape-game/maze.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="🧩 미로찾기 - 30초 탈출">
+<meta name="twitter:description" content="방향키로 미로를 탐험해 30초 안에 탈출하는 게임! 난이도 하/중/상 선택 가능.">
+<meta name="twitter:image" content="https://biblekim90.github.io/maze-escape-game/og-image.png">
+
 <style>
+  * { box-sizing: border-box; }
   body {
     margin: 0;
     min-height: 100vh;
@@ -14,13 +27,14 @@
     background: #1e1e2e;
     color: #eee;
     font-family: sans-serif;
+    padding: 12px;
   }
-  h1 { margin: 10px 0; }
-  #info { margin-bottom: 10px; font-size: 14px; color: #aaa; }
-  #controls { display: flex; gap: 8px; margin-bottom: 12px; }
+  h1 { margin: 10px 0; font-size: 22px; text-align: center; }
+  #info { margin-bottom: 10px; font-size: 13px; color: #aaa; text-align: center; }
+  #controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
   .diff {
-    padding: 7px 20px;
-    font-size: 15px;
+    padding: 7px 16px;
+    font-size: 14px;
     border: 2px solid #6c5ce7;
     border-radius: 6px;
     background: transparent;
@@ -30,7 +44,8 @@
   .diff.active { background: #6c5ce7; color: #fff; }
   .diff:hover { background: #5a4bd6; color: #fff; }
   #timerWrap {
-    width: 480px;
+    width: 100%;
+    max-width: 480px;
     height: 18px;
     background: #2a2a3a;
     border-radius: 9px;
@@ -53,12 +68,18 @@
     background: #2a2a3a;
     border: 4px solid #555;
     border-radius: 8px;
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    display: block;
+    touch-action: none;
   }
   #msg {
     margin-top: 12px;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: bold;
-    min-height: 30px;
+    min-height: 28px;
+    text-align: center;
   }
   #restart {
     margin-top: 6px;
@@ -71,11 +92,43 @@
     cursor: pointer;
   }
   #restart:hover { background: #5a4bd6; }
+
+  #dpad {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 56px 56px 56px;
+    grid-template-rows: 56px 56px 56px;
+    gap: 6px;
+    user-select: none;
+  }
+  #dpad button {
+    font-size: 22px;
+    border: none;
+    border-radius: 10px;
+    background: #3a3a4e;
+    color: #eee;
+    cursor: pointer;
+    touch-action: none;
+  }
+  #dpad button:active { background: #6c5ce7; }
+  #dpad .up { grid-column: 2; grid-row: 1; }
+  #dpad .left { grid-column: 1; grid-row: 2; }
+  #dpad .down { grid-column: 2; grid-row: 2; }
+  #dpad .right { grid-column: 3; grid-row: 2; }
+
+  @media (min-width: 700px) {
+    #dpad { display: none; }
+  }
+  @media (max-width: 360px) {
+    h1 { font-size: 18px; }
+    .diff { padding: 6px 12px; font-size: 13px; }
+    #timerText { font-size: 22px; }
+  }
 </style>
 </head>
 <body>
   <h1>🧩 미로찾기 - 30초 탈출</h1>
-  <div id="info">방향키로 이동 · 30초 안에 초록색 도착점에 닿으세요!</div>
+  <div id="info">방향키(또는 스와이프/버튼)로 이동 · 30초 안에 초록색 도착점에 닿으세요!</div>
 
   <div id="controls">
     <button class="diff" data-level="easy">하 (9×9)</button>
@@ -89,6 +142,13 @@
   <canvas id="game" width="480" height="480"></canvas>
   <div id="msg"></div>
   <button id="restart">다시 시작 (R)</button>
+
+  <div id="dpad">
+    <button class="up">▲</button>
+    <button class="left">◀</button>
+    <button class="down">▼</button>
+    <button class="right">▶</button>
+  </div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -252,6 +312,41 @@ document.querySelectorAll('.diff').forEach(btn => {
 });
 
 document.getElementById('restart').addEventListener('click', newGame);
+
+// 모바일 가상 방향키 (누르고 있으면 연속 이동)
+function bindHold(el, dx, dy) {
+  let timer = null;
+  const move = () => tryMove(dx, dy);
+  const start = (e) => { e.preventDefault(); move(); clearInterval(timer); timer = setInterval(move, 160); };
+  const stop = () => clearInterval(timer);
+  el.addEventListener('touchstart', start, { passive: false });
+  el.addEventListener('touchend', stop);
+  el.addEventListener('touchcancel', stop);
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', stop);
+  el.addEventListener('mouseleave', stop);
+}
+bindHold(document.querySelector('#dpad .up'), 0, -1);
+bindHold(document.querySelector('#dpad .down'), 0, 1);
+bindHold(document.querySelector('#dpad .left'), -1, 0);
+bindHold(document.querySelector('#dpad .right'), 1, 0);
+
+// 캔버스 스와이프 이동
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) tryMove(dx > 0 ? 1 : -1, 0);
+  else tryMove(0, dy > 0 ? 1 : -1);
+}, { passive: true });
 
 newGame();
 </script>
