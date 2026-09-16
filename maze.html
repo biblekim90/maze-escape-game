@@ -260,6 +260,25 @@ function win() {
   const used = ((Date.now() - startTime) / 1000).toFixed(1);
   msg.style.color = '#ffd700';
   msg.textContent = `🎉 탈출 성공! [${LEVELS[level].label}] ${used}초`;
+  drawWinOverlay();
+}
+
+function drawWinOverlay() {
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const boxH = canvas.height * 0.22;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(0, cy - boxH / 2, canvas.width, boxH);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = `bold ${Math.round(canvas.width * 0.13)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 8;
+  ctx.fillText('🎉 성공! 🎉', cx, cy);
+  ctx.restore();
 }
 
 function newGame() {
