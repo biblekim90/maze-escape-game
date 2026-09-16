@@ -158,15 +158,14 @@ const timerText = document.getElementById('timerText');
 const timerBar = document.getElementById('timerBar');
 
 const LEVELS = {
-  easy:   { size: 9,  label: '하' },
-  normal: { size: 13, label: '중' },
-  hard:   { size: 17, label: '상' }
+  easy:   { size: 9,  label: '하', time: 30000 },
+  normal: { size: 13, label: '중', time: 30000 },
+  hard:   { size: 17, label: '상', time: 45000 }
 };
-const TIME_LIMIT = 30000;
 
 let level = 'normal';
 let size, cell, grid, player, goal;
-let startTime, rafId, running;
+let startTime, timeLimit, rafId, running;
 
 function makeGrid(n) {
   const g = [];
@@ -233,14 +232,14 @@ function draw() {
 }
 
 function tick() {
-  const left = TIME_LIMIT - (Date.now() - startTime);
+  const left = timeLimit - (Date.now() - startTime);
   if (left <= 0) {
     timerText.textContent = '0.0';
     timerBar.style.width = '0%';
     gameOver();
     return;
   }
-  const ratio = left / TIME_LIMIT;
+  const ratio = left / timeLimit;
   timerText.textContent = (left / 1000).toFixed(1);
   timerBar.style.width = (ratio * 100) + '%';
   timerBar.style.background = ratio > 0.5 ? '#2ecc71' : ratio > 0.2 ? '#f1c40f' : '#e74c3c';
@@ -265,7 +264,9 @@ function win() {
 
 function newGame() {
   cancelAnimationFrame(rafId);
+  Object.keys(keyTimers).forEach(stopKeyMove);
   size = LEVELS[level].size;
+  timeLimit = LEVELS[level].time;
   cell = canvas.width / size;
   generateMaze(size);
   player = { x: 0, y: 0 };
@@ -273,6 +274,10 @@ function newGame() {
   msg.textContent = '';
   running = true;
   startTime = Date.now();
+  timerText.textContent = (timeLimit / 1000).toFixed(1);
+  timerBar.style.width = '100%';
+  timerBar.style.background = '#2ecc71';
+  timerText.style.color = '#eee';
   draw();
   tick();
 }
@@ -292,14 +297,40 @@ function tryMove(dx, dy) {
   if (player.x === goal.x && player.y === goal.y) win();
 }
 
+// 방향키를 누르고 있을 때 OS 기본 반복 지연(첫 반복까지 느림) 없이
+// 즉시 이동 + 빠른 간격으로 연속 이동되도록 자체 반복 처리
+const KEY_MOVES = {
+  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0]
+};
+const keyTimers = {};
+
+function startKeyMove(key) {
+  if (keyTimers[key]) return;
+  const [dx, dy] = KEY_MOVES[key];
+  tryMove(dx, dy);
+  keyTimers[key] = setInterval(() => tryMove(dx, dy), 90);
+}
+
+function stopKeyMove(key) {
+  clearInterval(keyTimers[key]);
+  delete keyTimers[key];
+}
+
 document.addEventListener('keydown', (e) => {
-  switch (e.key) {
-    case 'ArrowUp': tryMove(0, -1); e.preventDefault(); break;
-    case 'ArrowDown': tryMove(0, 1); e.preventDefault(); break;
-    case 'ArrowLeft': tryMove(-1, 0); e.preventDefault(); break;
-    case 'ArrowRight': tryMove(1, 0); e.preventDefault(); break;
-    case 'r': case 'R': newGame(); break;
+  if (KEY_MOVES[e.key]) {
+    e.preventDefault();
+    startKeyMove(e.key);
+    return;
   }
+  if (e.key === 'r' || e.key === 'R') newGame();
+});
+
+document.addEventListener('keyup', (e) => {
+  if (KEY_MOVES[e.key]) stopKeyMove(e.key);
+});
+
+window.addEventListener('blur', () => {
+  Object.keys(keyTimers).forEach(stopKeyMove);
 });
 
 document.querySelectorAll('.diff').forEach(btn => {
