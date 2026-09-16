@@ -166,6 +166,8 @@ const LEVELS = {
 let level = 'normal';
 let size, cell, grid, player, goal;
 let startTime, timeLimit, rafId, running;
+let facing = 1;   // 1: 오른쪽 보기, -1: 왼쪽 보기
+let runStep = 0;  // 달리기 동작 좌우 다리 전환용
 
 function makeGrid(n) {
   const g = [];
@@ -225,10 +227,60 @@ function draw() {
   ctx.fillStyle = '#2ecc71';
   ctx.fillRect(goal.x * cell + pad, goal.y * cell + pad, cell - pad * 2, cell - pad * 2);
 
+  drawRunner();
+}
+
+// 달리는 사람(졸라맨) 모양의 플레이어. runFrame으로 달리기 동작을 표현하고
+// facing으로 이동 방향에 맞춰 좌우 반전한다.
+function drawRunner() {
+  const cx = player.x * cell + cell / 2;
+  const cy = player.y * cell + cell / 2;
+  const s = cell * 0.42;
+  const swing = (runStep === 0 ? 1 : -1) * s * 0.35;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(facing, 1);
+  ctx.strokeStyle = '#e74c3c';
   ctx.fillStyle = '#e74c3c';
+  ctx.lineWidth = Math.max(2, cell * 0.1);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // 머리
   ctx.beginPath();
-  ctx.arc(player.x * cell + cell / 2, player.y * cell + cell / 2, cell / 2 - pad, 0, Math.PI * 2);
+  ctx.arc(0, -s * 0.95, s * 0.26, 0, Math.PI * 2);
   ctx.fill();
+
+  // 몸통 (앞으로 살짝 기울임)
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.65);
+  ctx.lineTo(s * 0.08, -s * 0.05);
+  ctx.stroke();
+
+  // 팔 (몸통 방향과 반대로 앞뒤로 흔들림)
+  ctx.beginPath();
+  ctx.moveTo(s * 0.04, -s * 0.45);
+  ctx.lineTo(-swing, -s * 0.15);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s * 0.04, -s * 0.45);
+  ctx.lineTo(swing, -s * 0.55);
+  ctx.stroke();
+
+  // 다리 (팔과 반대로 앞뒤로 스트라이드)
+  ctx.beginPath();
+  ctx.moveTo(s * 0.08, -s * 0.05);
+  ctx.lineTo(swing * 0.9, s * 0.2);
+  ctx.lineTo(swing * 1.3, s * 0.45);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s * 0.08, -s * 0.05);
+  ctx.lineTo(-swing * 0.9, s * 0.2);
+  ctx.lineTo(-swing * 1.3, s * 0.45);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function tick() {
@@ -290,6 +342,8 @@ function newGame() {
   generateMaze(size);
   player = { x: 0, y: 0 };
   goal = { x: size - 1, y: size - 1 };
+  facing = 1;
+  runStep = 0;
   msg.textContent = '';
   running = true;
   startTime = Date.now();
@@ -311,6 +365,8 @@ function tryMove(dx, dy) {
 
   player.x += dx;
   player.y += dy;
+  if (dx !== 0) facing = dx > 0 ? 1 : -1;
+  runStep = 1 - runStep;
   draw();
 
   if (player.x === goal.x && player.y === goal.y) win();
